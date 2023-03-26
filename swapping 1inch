@@ -1,0 +1,63 @@
+here's an example code snippet for swapping WBTC for USDC on Arbitrum using the 1inch API:
+
+from web3 import Web3
+from eth_abi import encode_abi
+import requests
+import json
+
+w3 = Web3(Web3.HTTPProvider('https://arb1.arbitrum.io/rpc'))
+
+# Set up your account and private key
+my_address = '0x...'
+my_private_key = '...'
+
+# Set up the token addresses and decimals
+wbtc_address = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'
+usdc_address = '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8'
+wbtc_decimals = 8
+usdc_decimals = 6
+
+# Set up the 1inch API endpoint and parameters
+api_endpoint = 'https://api.1inch.exchange/v3.0/1/swap'
+from_token_address = wbtc_address
+to_token_address = usdc_address
+amount = 0.1 * 10 ** wbtc_decimals
+params = {
+    'fromTokenAddress': from_token_address,
+    'toTokenAddress': to_token_address,
+    'amount': amount,
+    'fromAddress': my_address,
+    'slippage': 1,
+    'disableEstimate': True
+}
+
+# Get the 1inch API response
+response = requests.get(api_endpoint, params=params)
+response_json = json.loads(response.text)
+
+# Get the data for the transaction
+data = response_json['tx']['data']
+to_address = response_json['tx']['to']
+value = response_json['tx']['value']
+gas_price = response_json['tx']['gasPrice']
+gas = response_json['tx']['gas']
+
+# Encode the function signature and arguments for the 1inch swap function
+function_signature = 'swap(address,address,uint256,uint256,uint256,bytes)'
+function_arguments = encode_abi(['address', 'address', 'uint256', 'uint256', 'uint256', 'bytes'],
+                                [from_token_address, to_token_address, amount, 1, 0, data])
+
+# Create the transaction object
+transaction = {
+    'from': my_address,
+    'to': to_address,
+    'value': value,
+    'gasPrice': gas_price,
+    'gas': gas,
+    'data': function_signature + function_arguments[2:].hex()
+}
+
+# Sign and send the transaction
+signed_tx = w3.eth.account.sign_transaction(transaction, my_private_key)
+tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+print(f'Transaction hash: {tx_hash.hex()}')
